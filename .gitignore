@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# App output and secrets
+output/*.csv
+.env
