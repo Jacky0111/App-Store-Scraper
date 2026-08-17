@@ -130,7 +130,8 @@ async def categorize_reviews_async(input_path, output_path, args, key_names, com
         if key not in df.columns:
             raise KeyError(f"Missing column: {key}")
 
-    df[['Type', 'Lvl1 Category', 'Lvl2 Category']] = None
+    for col in ["Type", "Lvl1 Category", "Lvl2 Category"]:
+        df[col] = pd.Series([None] * len(df), dtype=object)
 
     for chunk in tqdm_asyncio(chunked(list(df.iterrows()), batch_size), desc="Categorizing batches"):
         tasks = []
@@ -152,6 +153,8 @@ async def retry_unknowns(output_path, args, key_names, company_name, max_retries
     """Retry categorization for rows still marked 'Unknown', up to max_retries passes."""
     for attempt in range(1, max_retries + 1):
         df = pd.read_csv(output_path)
+        for col in ["Type", "Lvl1 Category", "Lvl2 Category"]:
+            df[col] = df[col].astype(object)
 
         unknown_mask = df['Type'].isna() | df['Type'].eq("Unknown")
         df_unknown = df.loc[unknown_mask].copy()
@@ -193,6 +196,11 @@ async def retry_unknowns(output_path, args, key_names, company_name, max_retries
 
         df.to_csv(output_path, index=False)
         print(f"✅ Retry {attempt} completed. File updated in place: {output_path}")
+
+        still_unknown = df['Type'].isna() | df['Type'].eq("Unknown")
+        if not still_unknown.any():
+            print("🎉 All reviews categorized successfully!")
+            return
 
     print("❌ Max retries reached. Some reviews may still be Unknown.")
 
